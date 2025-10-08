@@ -18,40 +18,73 @@ namespace Coffee.UIParticleInternal
 {
     internal static class CanvasExtensions
     {
+        /// <summary>
+        /// 判断是否应该在Shader中执行Gamma空间到Linear空间的转换
+        /// 该方法用于确定UI粒子效果在渲染时是否需要进行颜色空间转换
+        /// </summary>
+        /// <param name="canvas">要检查的Canvas组件</param>
+        /// <returns>如果需要在Shader中执行Gamma到Linear的转换，则返回true；否则返回false</returns>
         public static bool ShouldGammaToLinearInShader(this Canvas canvas)
         {
+            // 只有当当前颜色空间为线性空间时才需要考虑转换
+            // 在支持vertexColorAlwaysGammaSpace属性的Unity版本中，还需检查该属性是否为true
             return QualitySettings.activeColorSpace == ColorSpace.Linear &&
 #if CANVAS_SUPPORT_ALWAYS_GAMMA
-                   canvas.vertexColorAlwaysGammaSpace;
+                   canvas.vertexColorAlwaysGammaSpace; // Unity 2021.3+等版本支持的属性，指示顶点颜色始终在Gamma空间中
 #else
-                   false;
+                   false; // 不支持vertexColorAlwaysGammaSpace属性的旧版本Unity始终返回false
 #endif
         }
 
+        /// <summary>
+        /// 判断是否应该在网格生成时执行Gamma空间到Linear空间的转换
+        /// 该方法与ShouldGammaToLinearInShader互补，用于确定UI粒子效果在何时进行颜色空间转换
+        /// </summary>
+        /// <param name="canvas">要检查的Canvas组件</param>
+        /// <returns>如果需要在网格生成时执行Gamma到Linear的转换，则返回true；否则返回false</returns>
         public static bool ShouldGammaToLinearInMesh(this Canvas canvas)
         {
+            // 只有当当前颜色空间为线性空间时才需要考虑转换
+            // 在支持vertexColorAlwaysGammaSpace属性的Unity版本中，当该属性为false时需要在网格生成时转换
             return QualitySettings.activeColorSpace == ColorSpace.Linear &&
 #if CANVAS_SUPPORT_ALWAYS_GAMMA
-                   !canvas.vertexColorAlwaysGammaSpace;
+                   !canvas.vertexColorAlwaysGammaSpace; // 当顶点颜色不总是在Gamma空间时，需要在网格生成时转换
 #else
-                   true;
+                   true; // 不支持vertexColorAlwaysGammaSpace属性的旧版本Unity始终需要在网格生成时转换
 #endif
         }
 
+        /// <summary>
+        /// 检查Canvas是否应该以立体方式渲染（用于VR/AR环境）
+        /// 该方法用于确定UI粒子效果是否需要为VR/AR环境进行特殊处理
+        /// </summary>
+        /// <param name="canvas">要检查的Canvas组件</param>
+        /// <returns>如果Canvas需要以立体方式渲染，则返回true；否则返回false</returns>
         public static bool IsStereoCanvas(this Canvas canvas)
         {
 #if UNITY_MODULE_VR
+            // 尝试从帧缓存中获取结果，避免重复计算
             if (FrameCache.TryGet<bool>(canvas, nameof(IsStereoCanvas), out var stereo)) return stereo;
 
+            // 判断是否为立体Canvas的条件：
+            // 1. Canvas不为空
+            // 2. 渲染模式不是ScreenSpaceOverlay（该模式不支持立体渲染）
+            // 3. 有设置世界相机
+            // 4. XR设置已启用
+            // 5. 已加载XR设备
             stereo =
                 canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay && canvas.worldCamera != null
                 && XRSettings.enabled && !string.IsNullOrEmpty(XRSettings.loadedDeviceName);
+            
+            // 将结果存入帧缓存，供后续快速访问
             FrameCache.Set(canvas, nameof(IsStereoCanvas), stereo);
             return stereo;
 #else
+            // 没有VR模块时，始终返回false
             return false;
 #endif
         }
+
 
         /// <summary>
         /// Gets the view-projection matrix for a Canvas.
