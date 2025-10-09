@@ -13,43 +13,77 @@ namespace Coffee.UIParticleInternal
     internal static class ComponentExtensions
     {
         /// <summary>
-        /// Get components in children of a specific type in the hierarchy of a GameObject.
+        /// 在GameObject的层次结构中获取指定类型的子组件，限制搜索深度。
         /// </summary>
+        /// <typeparam name="T">要查找的组件类型</typeparam>
+        /// <param name="self">当前组件</param>
+        /// <param name="depth">搜索深度，0表示只搜索自身，1表示搜索自身和直接子对象，以此类推</param>
+        /// <returns>找到的所有指定类型组件的数组</returns>
         public static T[] GetComponentsInChildren<T>(this Component self, int depth)
             where T : Component
         {
+            // 从对象池租用一个列表来存储结果，避免频繁创建新列表导致的GC开销
             var results = InternalListPool<T>.Rent();
+
+            // 调用内部实现方法来填充结果列表
             self.GetComponentsInChildren_Internal(results, depth);
+
+            // 将列表转换为数组，这是返回给调用者的最终结果
             var array = results.ToArray();
+
+            // 将临时列表归还对象池，以便重用
             InternalListPool<T>.Return(ref results);
+
+            // 返回找到的组件数组
             return array;
         }
 
         /// <summary>
-        /// Get components in children of a specific type in the hierarchy of a GameObject.
+        /// 在GameObject的层次结构中获取指定类型的子组件，并将结果存储在指定的列表中。
         /// </summary>
+        /// <typeparam name="T">要查找的组件类型</typeparam>
+        /// <param name="self">当前组件（扩展方法的目标组件）</param>
+        /// <param name="results">用于存储结果的列表</param>
+        /// <param name="depth">搜索深度，0表示只搜索自身，1表示搜索自身和直接子对象，以此类推</param>
         public static void GetComponentsInChildren<T>(this Component self, List<T> results, int depth)
             where T : Component
         {
+            // 清空结果列表，确保不会有之前的残留数据
             results.Clear();
+            // 调用内部递归实现方法来填充结果列表
             self.GetComponentsInChildren_Internal(results, depth);
         }
 
+        /// <summary>
+        /// 获取子组件的内部递归实现方法
+        /// </summary>
+        /// <typeparam name="T">要查找的组件类型</typeparam>
+        /// <param name="self">当前组件</param>
+        /// <param name="results">用于存储结果的列表</param>
+        /// <param name="depth">剩余的搜索深度</param>
         private static void GetComponentsInChildren_Internal<T>(this Component self, List<T> results, int depth)
             where T : Component
         {
+            // 参数有效性检查：如果组件为空、结果列表为空或深度小于0，则直接返回
             if (!self || results == null || depth < 0) return;
 
+            // 获取当前组件的变换组件
             var tr = self.transform;
+            // 尝试获取当前变换组件上的指定类型组件
             if (tr.TryGetComponent<T>(out var t))
             {
+                // 如果找到匹配的组件，则添加到结果列表中
                 results.Add(t);
             }
 
+            // 检查是否还有剩余搜索深度（是否继续递归搜索子对象）
             if (depth - 1 < 0) return;
+            // 获取子对象数量
             var childCount = tr.childCount;
+            // 遍历所有子对象
             for (var i = 0; i < childCount; i++)
             {
+                // 递归搜索每个子对象，深度减1
                 tr.GetChild(i).GetComponentsInChildren_Internal(results, depth - 1);
             }
         }
