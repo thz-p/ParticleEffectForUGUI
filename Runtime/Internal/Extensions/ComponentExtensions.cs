@@ -89,33 +89,50 @@ namespace Coffee.UIParticleInternal
         }
 
         /// <summary>
-        /// Get or add a component of a specific type to a GameObject.
+        /// 获取GameObject上指定类型的组件，如果不存在则添加该组件
         /// </summary>
+        /// <typeparam name="T">要获取或添加的组件类型</typeparam>
+        /// <param name="self">当前组件（扩展方法的目标组件）</param>
+        /// <returns>找到的现有组件或新添加的组件，如果self为null则返回null</returns>
         public static T GetOrAddComponent<T>(this Component self) where T : Component
         {
+            // 参数有效性检查：如果组件为空，则直接返回null
             if (!self) return null;
+            
+            // 尝试获取组件，如果存在则返回现有组件，否则添加新组件并返回
             return self.TryGetComponent<T>(out var component)
-                ? component
-                : self.gameObject.AddComponent<T>();
+                ? component  // 组件已存在，返回找到的组件
+                : self.gameObject.AddComponent<T>();  // 组件不存在，添加新组件并返回
         }
 
         /// <summary>
-        /// Get the root component of a specific type in the hierarchy of a GameObject.
+        /// 获取游戏对象层次结构中特定类型的根组件
         /// </summary>
+        /// <typeparam name="T">要查找的组件类型</typeparam>
+        /// <param name="self">当前组件</param>
+        /// <returns>在层次结构中找到的最后一个（最接近根）的指定类型组件，如果没有找到则返回null</returns>
         public static T GetRootComponent<T>(this Component self) where T : Component
         {
+            // 初始化结果组件为null
             T component = null;
+            // 获取当前组件的变换组件
             var transform = self.transform;
+            
+            // 遍历从当前变换直到根变换的整个层次结构
             while (transform)
             {
+                // 尝试在当前变换上获取指定类型的组件
                 if (transform.TryGetComponent<T>(out var c))
                 {
+                    // 如果找到组件，更新结果（注意：会被上层找到的组件覆盖）
                     component = c;
                 }
 
+                // 移动到父变换继续查找
                 transform = transform.parent;
             }
 
+            // 返回在整个层次结构中找到的最接近根的组件
             return component;
         }
 
