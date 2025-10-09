@@ -137,137 +137,207 @@ namespace Coffee.UIParticleInternal
         }
 
         /// <summary>
-        /// Get a component of a specific type in the parent hierarchy of a GameObject.
+        /// 在游戏对象的父级层次结构中获取特定类型的组件
         /// </summary>
+        /// <typeparam name="T">要查找的组件类型</typeparam>
+        /// <param name="self">当前组件</param>
+        /// <param name="includeSelf">是否包含自身</param>
+        /// <param name="stopAfter">停止查找的父级变换，如果达到此变换则停止查找</param>
+        /// <param name="valid">用于验证找到的组件是否有效的谓词函数</param>
+        /// <returns>找到的符合条件的组件，如果没有找到则返回null</returns>
         public static T GetComponentInParent<T>(this Component self, bool includeSelf, Transform stopAfter,
             Predicate<T> valid)
             where T : Component
         {
+            // 根据includeSelf参数决定从当前变换还是父变换开始查找
             var tr = includeSelf ? self.transform : self.transform.parent;
+            
+            // 遍历层次结构中的每个父变换
             while (tr)
             {
+                // 尝试获取组件，并使用valid谓词函数验证是否符合条件
                 if (tr.TryGetComponent<T>(out var c) && valid(c)) return c;
+                
+                // 如果当前变换是指定的停止点，则返回null
                 if (tr == stopAfter) return null;
+                
+                // 移动到下一个父变换
                 tr = tr.parent;
             }
 
+            // 遍历完整个层次结构后仍然没有找到符合条件的组件，返回null
             return null;
         }
 
         /// <summary>
-        /// Add a component of a specific type to the children of a GameObject.
+        /// 向游戏对象的子对象添加特定类型的组件
         /// </summary>
+        /// <typeparam name="T">要添加的组件类型</typeparam>
+        /// <param name="self">当前组件</param>
+        /// <param name="hideFlags">添加的组件的隐藏标志</param>
+        /// <param name="includeSelf">是否也在当前对象上添加组件</param>
         public static void AddComponentOnChildren<T>(this Component self, HideFlags hideFlags, bool includeSelf)
             where T : Component
         {
+            // 参数检查，如果当前组件为null则直接返回
             if (self == null) return;
 
+            // 开始性能分析采样（针对当前对象）
             Profiler.BeginSample("(COF)[ComponentExt] AddComponentOnChildren > Self");
+            // 如果需要包含自身，并且自身没有该组件，则添加组件
             if (includeSelf && !self.TryGetComponent<T>(out _))
             {
                 var c = self.gameObject.AddComponent<T>();
-                c.hideFlags = hideFlags;
+                c.hideFlags = hideFlags;  // 设置组件的隐藏标志
             }
 
+            // 结束当前对象的性能分析采样
             Profiler.EndSample();
 
+            // 开始子对象的性能分析采样
             Profiler.BeginSample("(COF)[ComponentExt] AddComponentOnChildren > Child");
+            // 获取子对象数量
             var childCount = self.transform.childCount;
+            // 遍历所有子对象
             for (var i = 0; i < childCount; i++)
             {
                 var child = self.transform.GetChild(i);
+                // 如果子对象已经有该组件，则跳过
                 if (child.TryGetComponent<T>(out _)) continue;
 
+                // 为没有该组件的子对象添加组件
                 var c = child.gameObject.AddComponent<T>();
-                c.hideFlags = hideFlags;
+                c.hideFlags = hideFlags;  // 设置组件的隐藏标志
             }
 
+            // 结束子对象的性能分析采样
             Profiler.EndSample();
         }
 
         /// <summary>
-        /// Add a component of a specific type to the children of a GameObject.
+        /// 向GameObject的子对象添加指定类型的组件
         /// </summary>
+        /// <typeparam name="T">要添加的组件类型</typeparam>
+        /// <param name="self">扩展的组件实例</param>
+        /// <param name="includeSelf">是否同时在自身GameObject上添加组件</param>
         public static void AddComponentOnChildren<T>(this Component self, bool includeSelf)
             where T : Component
         {
+            // 参数检查，防止空引用异常
             if (self == null) return;
 
+            // 开始性能分析采样 - 处理自身GameObject
             Profiler.BeginSample("(COF)[ComponentExt] AddComponentOnChildren > Self");
+            // 如果需要包含自身，并且自身GameObject上还没有该组件，则添加
             if (includeSelf && !self.TryGetComponent<T>(out _))
             {
                 self.gameObject.AddComponent<T>();
             }
 
+            // 结束自身GameObject的性能分析采样
             Profiler.EndSample();
 
+            // 开始性能分析采样 - 处理子对象
             Profiler.BeginSample("(COF)[ComponentExt] AddComponentOnChildren > Child");
+            // 获取子对象数量
             var childCount = self.transform.childCount;
+            // 遍历所有直接子对象
             for (var i = 0; i < childCount; i++)
             {
                 var child = self.transform.GetChild(i);
+                // 如果子对象已经有该组件，则跳过
                 if (child.TryGetComponent<T>(out _)) continue;
 
+                // 为子对象添加组件
                 child.gameObject.AddComponent<T>();
             }
 
+            // 结束子对象的性能分析采样
             Profiler.EndSample();
         }
 
 #if !UNITY_2021_2_OR_NEWER && !UNITY_2020_3_45 && !UNITY_2020_3_46 && !UNITY_2020_3_47 && !UNITY_2020_3_48
+        /// <summary>
+        /// 在组件的父级对象中查找指定类型的组件
+        /// 该方法是为了兼容旧版本Unity，在新版本中Unity已提供原生支持
+        /// </summary>
+        /// <typeparam name="T">要查找的组件类型</typeparam>
+        /// <param name="self">扩展的组件实例</param>
+        /// <param name="includeInactive">是否包含非激活状态的GameObject</param>
+        /// <returns>找到的组件，如果没有找到则返回null</returns>
         public static T GetComponentInParent<T>(this Component self, bool includeInactive) where T : Component
         {
+            // 参数检查，防止空引用异常
             if (!self) return null;
+            
+            // 如果不需要包含非激活对象，直接使用Unity原生方法
             if (!includeInactive) return self.GetComponentInParent<T>();
 
+            // 从当前对象的Transform开始向上查找
             var current = self.transform;
+            // 当还有父级时继续查找
             while (current)
             {
+                // 尝试获取当前Transform上的目标组件
                 if (current.TryGetComponent<T>(out var c)) return c;
+                // 移动到父级Transform
                 current = current.parent;
             }
 
+            // 未找到指定类型的组件
             return null;
         }
 #endif
 
 #if UNITY_EDITOR
         /// <summary>
-        /// Verify whether it can be converted to the specified component.
+        /// 验证对象是否可以转换为指定的MonoBehaviour组件类型
         /// </summary>
+        /// <typeparam name="T">目标组件类型</typeparam>
+        /// <param name="context">要检查的对象</param>
+        /// <returns>如果对象非空且与目标类型不同，则返回true，表示可以转换</returns>
         internal static bool CanConvertTo<T>(this Object context) where T : MonoBehaviour
         {
+            // 检查对象是否非空，并且其类型与目标类型不同
             return context && context.GetType() != typeof(T);
         }
 
         /// <summary>
-        /// Convert to the specified component.
+        /// 将对象转换为指定的MonoBehaviour组件类型
+        /// 此方法通过修改组件的m_Script属性实现类型转换
         /// </summary>
+        /// <typeparam name="T">目标组件类型</typeparam>
+        /// <param name="context">要转换的对象</param>
         internal static void ConvertTo<T>(this Object context) where T : MonoBehaviour
         {
+            // 将对象转换为MonoBehaviour，如果失败则直接返回
             var target = context as MonoBehaviour;
             if (target == null) return;
 
+            // 创建序列化对象以访问私有属性
             var so = new SerializedObject(target);
             so.Update();
 
+            // 保存当前组件的启用状态，并暂时禁用它
             var oldEnable = target.enabled;
             target.enabled = false;
 
-            // Find MonoScript of the specified component.
+            // 查找指定组件类型的MonoScript
             foreach (var script in MonoImporter.GetAllRuntimeMonoScripts())
             {
+                // 跳过不匹配的脚本类型
                 if (script.GetClass() != typeof(T))
                 {
                     continue;
                 }
 
-                // Set 'm_Script' to convert.
+                // 设置'm_Script'属性以执行转换
                 so.FindProperty("m_Script").objectReferenceValue = script;
                 so.ApplyModifiedProperties();
                 break;
             }
 
+            // 恢复组件的原始启用状态
             if (so.targetObject is MonoBehaviour mb)
             {
                 mb.enabled = oldEnable;
