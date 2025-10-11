@@ -12,9 +12,19 @@ namespace Coffee.UIParticleInternal
         private readonly Predicate<T> _onValid; // Delegate for checking if instances are valid
         private readonly UnityEngine.Pool.ObjectPool<T> _pool;
 
+        /// <summary>
+        /// 构造函数，初始化对象池
+        /// </summary>
+        /// <param name="onCreate">创建新实例的委托函数</param>
+        /// <param name="onValid">验证实例是否有效的委托函数</param>
+        /// <param name="onReturn">实例返回到池中时执行的委托函数</param>
         public InternalObjectPool(Func<T> onCreate, Predicate<T> onValid, Action<T> onReturn)
         {
+            // 使用Unity 2021.1及以上版本提供的对象池实现
+            // 创建Unity内置的对象池，传入创建函数和返回函数
             _pool = new UnityEngine.Pool.ObjectPool<T>(onCreate, null, onReturn);
+            
+            // 保存验证实例有效性的委托函数
             _onValid = onValid;
         }
 
