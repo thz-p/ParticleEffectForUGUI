@@ -121,16 +121,29 @@ namespace Coffee.UIParticleInternal
     }
 
     /// <summary>
-    /// A fast action without parameters.
+    /// 无参数快速动作类。
+    /// 继承自FastActionBase<Action>，专门用于管理无参数的Action委托。
+    /// 在Unity粒子系统中用于高性能的事件处理，避免GC分配。
     /// </summary>
     internal class FastAction : FastActionBase<Action>
     {
         /// <summary>
-        /// Invoke all the registered delegates.
+        /// 调用所有已注册的无参数委托。
+        /// 使用基类的Invoke方法，通过lambda表达式调用每个Action。
         /// </summary>
+        /// <example>
+        /// 使用示例：
+        /// var action = new FastAction();
+        /// action.Add(() => Debug.Log("Hello"));
+        /// action.Add(() => particleSystem.Play());
+        /// action.Invoke(); // 依次执行所有注册的委托
+        /// </example>
         public void Invoke()
         {
+            // 调用基类的Invoke方法，传入lambda表达式来执行每个Action
+            // action => action.Invoke() 表示对每个Action调用其Invoke方法
             Invoke(action => action.Invoke());
         }
     }
+
 }
